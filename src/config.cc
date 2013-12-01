@@ -43,6 +43,9 @@ CConfig::CConfig()
 	pidfile = "socks5.pid";
 	retry_count = 5;
 	no_ident_check = 0;
+	use_ssl = 0;
+	ssl_cert = "";
+	no_chroot = 0;
 
 }
 
@@ -235,6 +238,9 @@ int CConfig::readconf(string filename,string key,int crypted)
 		getentry(pidfile,"pidfile",ok,daten);
 		getentry(retry_count,"retry_count",ok,daten);
 		getentry(no_ident_check,"no_ident_check",ok,daten);
+		getentry(use_ssl,"use_ssl",ok,daten);
+		getentry(ssl_cert,"ssl_cert",ok,daten);
+		getentry(no_chroot,"no_chroot",ok,daten);
 
    		for(int i=0;i < (int)daten.length();i++)
    		{

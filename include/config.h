@@ -65,6 +65,9 @@ class CConfig
 	int retry_count;	
 	string command_logfile; // dummy - not needed - for using unchanged tools.cc
 	int no_ident_check;
+	int use_ssl;
+	string ssl_cert;
+	int no_chroot;
 };
 
 extern CConfig config;

@@ -17,7 +17,206 @@ string old_oidentd; // save old oidentd.conf
 CUserList userlist;
 
 pthread_attr_t threadattr;
+SSL_CTX *sslctx = NULL;
 
+#define MUTEX_TYPE	pthread_mutex_t
+#define MUTEX_SETUP(x)	pthread_mutex_init(&(x),NULL)
+#define MUTEX_CLEANUP(x)	pthread_mutex_destroy(&(x))
+#define MUTEX_LOCK(x)	pthread_mutex_lock(&(x))
+#define MUTEX_UNLOCK(x)	pthread_mutex_unlock(&(x))
+#define THREAD_ID	pthread_self()
+
+struct CRYPTO_dynlock_value
+{
+	MUTEX_TYPE mutex;
+};
+
+
+static MUTEX_TYPE *mutex_buf = NULL;
+
+static DH *globaldh = NULL;
+
+static void locking_function(int mode, int n, const char * file, int line)
+{
+	stringstream ss;
+	ss << mode << n << file << line;
+	if (mode & CRYPTO_LOCK)
+	{
+		MUTEX_LOCK(mutex_buf[n]);
+	}
+	else
+	{
+		MUTEX_UNLOCK(mutex_buf[n]);
+	}
+}
+
+static unsigned long id_function(void)
+{
+	return ((unsigned long)THREAD_ID);
+}
+
+static struct CRYPTO_dynlock_value * dyn_create_function(const char *file, int line)
+{
+	stringstream ss;
+	ss << file << line;
+	struct CRYPTO_dynlock_value *value;
+	value = (struct CRYPTO_dynlock_value *)malloc(sizeof(struct CRYPTO_dynlock_value));
+	if (!value)
+	{
+		return NULL;
+	}
+	MUTEX_SETUP(value->mutex);
+	return value;
+}
+
+static void dyn_lock_function(int mode, struct CRYPTO_dynlock_value *l, const char *file, int line)
+{
+	stringstream ss;
+	ss << mode << file << line;
+	if (mode & CRYPTO_LOCK)
+	{
+		MUTEX_LOCK(l->mutex);
+	}
+	else
+	{
+		MUTEX_UNLOCK(l->mutex);
+	}
+}
+
+static void dyn_destroy_function(struct CRYPTO_dynlock_value *l, const char *file, int line)
+{
+	stringstream ss;
+	ss << file << line;
+	MUTEX_CLEANUP(l->mutex);
+	free(l);
+}
+
+int THREAD_setup(void)
+{
+	int i;
+	
+	mutex_buf = (MUTEX_TYPE *)malloc(CRYPTO_num_locks() * sizeof(MUTEX_TYPE));
+	if (!mutex_buf)
+	{
+		return 0;
+	}
+	for (i = 0; i < CRYPTO_num_locks(); i++)
+	{
+		MUTEX_SETUP(mutex_buf[i]);
+	}
+	CRYPTO_set_id_callback(id_function);
+	CRYPTO_set_locking_callback(locking_function);
+	
+	CRYPTO_set_dynlock_create_callback(dyn_create_function);
+	CRYPTO_set_dynlock_lock_callback(dyn_lock_function);
+	CRYPTO_set_dynlock_destroy_callback(dyn_destroy_function);
+	
+	return 1;
+}
+
+int THREAD_cleanup(void)
+{
+	int i;
+	
+	if (!mutex_buf)
+	{
+		return 0;
+	}
+	CRYPTO_set_id_callback(NULL);
+	CRYPTO_set_locking_callback(NULL);
+	CRYPTO_set_dynlock_create_callback(NULL);
+	CRYPTO_set_dynlock_lock_callback(NULL);
+	CRYPTO_set_dynlock_destroy_callback(NULL);
+	for (i = 0; i < CRYPTO_num_locks(); i++)
+	{
+		MUTEX_CLEANUP(mutex_buf[i]);
+	}
+	free(mutex_buf);
+	mutex_buf = NULL;
+	return 1;
+}
+
+
+
+DH *tmp_dh_cb(SSL *ssl, int is_export, int keylength)
+{
+	stringstream ss;
+	ss << is_export << keylength << ssl;
+	
+	return globaldh;
+	
+}
+
+int ssl_setup()
+{
+	sslctx = NULL;
+	
+	if (RAND_status()) { debugmsg("-SYSTEM-","RAND_status ok"); }
+	else { cout << "RAND_status not ok\n"; return 0; }
+	sslctx = SSL_CTX_new(SSLv23_server_method());
+	if (sslctx == NULL)
+	{
+		debugmsg("-SYSTEM-", "error creating ctx");		
+		return 0;
+	}
+		
+	SSL_CTX_set_default_verify_paths(sslctx);
+	SSL_CTX_set_options(sslctx,SSL_OP_ALL);
+	SSL_CTX_set_mode(sslctx,SSL_MODE_AUTO_RETRY);
+		
+	debugmsg("-SYSTEM-", "try to load cert file");
+	if (SSL_CTX_use_certificate_chain_file(sslctx,config.ssl_cert.c_str()) <= 0)
+	{	
+		
+		debugmsg("-SYSTEM-", "error loading cert file!");
+		return 0;
+	}
+	else 
+	{
+		SSL_CTX_use_certificate_chain_file(sslctx,config.ssl_cert.c_str());
+		debugmsg("-SYSTEM-", "try to load private key");
+		if (SSL_CTX_use_PrivateKey_file(sslctx, config.ssl_cert.c_str(), SSL_FILETYPE_PEM) <=0 )
+		{	
+			debugmsg("-SYSTEM-", "error loading private key!");
+			return 0;
+		}		
+	}
+	debugmsg("-SYSTEM-", "try to load dh params");
+	FILE *fp = fopen(config.ssl_cert.c_str(), "r");
+	if (fp == NULL) 
+	{ 
+		debugmsg("SYSTEM","[tmp_dh_cb] could not open file!"); 
+		return 0;
+	}
+	globaldh = PEM_read_DHparams(fp, NULL, NULL, NULL);
+	fclose(fp);
+	if(globaldh == NULL)
+	{
+		debugmsg("-SYSTEM-", "read dh params failed");
+		
+		return 0;
+		
+	}
+    
+    debugmsg("-SYSTEM-", "try to check private key");
+	if ( !SSL_CTX_check_private_key(sslctx))
+	{		
+		debugmsg("-SYSTEM-", "key invalid");
+		return 0;
+	}
+	
+	SSL_CTX_set_session_cache_mode(sslctx,SSL_SESS_CACHE_OFF);
+	
+	SSL_CTX_set_tmp_dh_callback(sslctx, tmp_dh_cb);
+	
+
+	if(!THREAD_setup())
+	{
+		return 0;
+	}
+	
+	return 1;
+}
 
 class CIdentThread
 {
@@ -71,16 +270,29 @@ public:
 		bind_sock = -1;
 		cport = clport;
 		cip = clip;
-		
+		ssl = NULL;
 		buffer = new char[config.buffersize];
 	}
 
 	~CSockThread()
 	{
 		debugmsg("CSockThread","destructor start");
+
+		if(ssl != NULL)
+		{
+			SSL_shutdown(ssl);
+		}
+
 		Close(tmp_sock,"");
 		Close(server_sock,"");
 		Close(bind_sock,"");
+
+		if (ssl != NULL) 
+		{ 			
+			SSL_free(ssl); 
+			ssl = NULL; 
+		}
+
 		delete [] buffer;
 		debugmsg("CSockThread","destructor End");		
 	}
@@ -97,9 +309,21 @@ private:
 	int bind_sock;
 	int cport; // port from client - for ident request
 	string cip; // ip from client - for ident request
+	SSL *ssl;
+	int shouldquit;
 
 	void mainloop(void)
 	{
+		
+		if(config.use_ssl)
+		{
+			shouldquit = 0;
+			if(!SslAccept(tmp_sock,&ssl,&sslctx,shouldquit))
+			{
+				debugmsg("-SYSTEM-", "[client thread] ssl accept from client failed",errno);
+				return;
+			}
+		}
 			CUserEntry entry;
 			string tmp;
 			string user_ident = "*";
@@ -133,9 +357,10 @@ private:
 			int rc;
 			if (FD_ISSET(tmp_sock, &data_readfds))
 			{
-				if(!DataRead(tmp_sock,buffer,rc,NULL,0,0))
+				if(!DataRead(tmp_sock,buffer,rc,ssl,0,0))
 				{					
 					debugmsg("-SYSTEM-","data read failed");
+					return;
 				}
 				if(rc >= 3 && rc <= 257)
 				{
@@ -149,7 +374,7 @@ private:
 						debugmsg("-SYSTEM-","protocol is not 5");
 						buffer[0] = 5; // protocol version
 						buffer[1] = 255; // method user/pass
-						DataWrite(tmp_sock,buffer,2,NULL);						
+						DataWrite(tmp_sock,buffer,2,ssl);						
 						return;
 					}
 					if(buffer[1] >= 1)
@@ -161,7 +386,7 @@ private:
 						debugmsg("-SYSTEM-","number of methods < 1");
 						buffer[0] = 5; // protocol version
 						buffer[1] = 255; // no acceptable method
-						DataWrite(tmp_sock,buffer,2,NULL);
+						DataWrite(tmp_sock,buffer,2,ssl);
 						return;
 					}
 					if(buffer[1] +2 != rc)
@@ -169,7 +394,7 @@ private:
 						debugmsg("-SYSTEM-","number of methods does not match read methods");
 						buffer[0] = 5; // protocol version
 						buffer[1] = 255; // no acceptable method
-						DataWrite(tmp_sock,buffer,2,NULL);
+						DataWrite(tmp_sock,buffer,2,ssl);
 						return;
 					}
 					bool right_method = false;
@@ -183,10 +408,10 @@ private:
 					}
 					else
 					{
-						debugmsg("-SYSTEM-","wrong methodrequested");
+						debugmsg("-SYSTEM-","wrong method requested");
 						buffer[0] = 5; // protocol version
 						buffer[1] = 255; // no acceptable method
-						DataWrite(tmp_sock,buffer,2,NULL);
+						DataWrite(tmp_sock,buffer,2,ssl);
 						return;
 					}
 
@@ -196,7 +421,7 @@ private:
 					debugmsg("-SYSTEM-","wrong number of bytes read");
 					buffer[0] = 5; // protocol version
 					buffer[1] = 255; // no acceptable method
-					DataWrite(tmp_sock,buffer,2,NULL);
+					DataWrite(tmp_sock,buffer,2,ssl);
 					return;
 				}
 			}
@@ -207,7 +432,7 @@ private:
 			}
 			buffer[0] = 5; // protocol version
 			buffer[1] = 2; // method user/pass
-			if(!DataWrite(tmp_sock,buffer,2,NULL))
+			if(!DataWrite(tmp_sock,buffer,2,ssl))
 			{
 				debugmsg("-SYSTEM-","error writing to client");
 				return;
@@ -230,7 +455,7 @@ private:
 			
 			if (FD_ISSET(tmp_sock, &data_readfds))
 			{
-				if(!DataRead(tmp_sock,buffer,rc,NULL,0,0))
+				if(!DataRead(tmp_sock,buffer,rc,ssl,0,0))
 				{					
 					debugmsg("-SYSTEM-","data read failed");
 					return;
@@ -240,7 +465,7 @@ private:
 					debugmsg("-SYSTEM-","wrong length");
 					buffer[0] = 1; // protocol version
 					buffer[1] = 1; // failure
-					DataWrite(tmp_sock,buffer,2,NULL);
+					DataWrite(tmp_sock,buffer,2,ssl);
 					return;
 				}
 				int namel,passl;
@@ -255,7 +480,7 @@ private:
 					debugmsg("-SYSTEM-","wrong protocol");
 					buffer[0] = 1; // protocol version
 					buffer[1] = 1; // failure
-					DataWrite(tmp_sock,buffer,2,NULL);
+					DataWrite(tmp_sock,buffer,2,ssl);
 					return;
 				}
 				namel = buffer[1];
@@ -265,7 +490,7 @@ private:
 					debugmsg("-SYSTEM-","wrong username length");
 					buffer[0] = 1; // protocol version
 					buffer[1] = 1; // failure
-					DataWrite(tmp_sock,buffer,2,NULL);
+					DataWrite(tmp_sock,buffer,2,ssl);
 					return;
 				}
 				for(int i=0;i < namel;i++)
@@ -278,7 +503,7 @@ private:
 					debugmsg("-SYSTEM-","wrong pass length");
 					buffer[0] = 1; // protocol version
 					buffer[1] = 1; // failure
-					DataWrite(tmp_sock,buffer,2,NULL);
+					DataWrite(tmp_sock,buffer,2,ssl);
 					return;
 				}
 				string pass;
@@ -292,7 +517,7 @@ private:
 					debugmsg("-SYSTEM-","name is: '" + username + "' pass is: '" + pass + "'");
 					buffer[0] = 1; // protocol version
 					buffer[1] = 1; // failure
-					DataWrite(tmp_sock,buffer,2,NULL);
+					DataWrite(tmp_sock,buffer,2,ssl);
 					return;
 				}
 				// ip check here
@@ -301,7 +526,7 @@ private:
 					debugmsg("-SYSTEM-","wrong userip");					
 					buffer[0] = 1; // protocol version
 					buffer[1] = 1; // failure
-					DataWrite(tmp_sock,buffer,2,NULL);
+					DataWrite(tmp_sock,buffer,2,ssl);
 					return;
 				}
 				if(!config.no_ident_check)
@@ -312,14 +537,14 @@ private:
 						debugmsg("-SYSTEM-","ident is: '" + user_ident + "'");
 						buffer[0] = 1; // protocol version
 						buffer[1] = 1; // failure
-						DataWrite(tmp_sock,buffer,2,NULL);
+						DataWrite(tmp_sock,buffer,2,ssl);
 						return;
 					}
 				}
 				//everything ok
 				buffer[0] = 1; // protocol version
 				buffer[1] = 0; // ok
-				if(!DataWrite(tmp_sock,buffer,2,NULL))
+				if(!DataWrite(tmp_sock,buffer,2,ssl))
 				{
 					debugmsg("-SYSTEM-","error writing to client");
 					return;
@@ -343,7 +568,7 @@ private:
 				
 				if (FD_ISSET(tmp_sock, &data_readfds))
 				{
-					if(!DataRead(tmp_sock,buffer,rc,NULL,0,0))
+					if(!DataRead(tmp_sock,buffer,rc,ssl,0,0))
 					{					
 						debugmsg("-SYSTEM-","data read failed");
 						return;
@@ -353,7 +578,7 @@ private:
 						debugmsg("-SYSTEM-","illegal length");
 						buffer[0] = 5; // protocol version
 						buffer[1] = 1; // general SOCKS server failure
-						DataWrite(tmp_sock,buffer,2,NULL);						
+						DataWrite(tmp_sock,buffer,2,ssl);						
 						return;
 					}
 					if(buffer[0] == 5)
@@ -365,7 +590,7 @@ private:
 						debugmsg("-SYSTEM-","protocol is not 5");
 						buffer[0] = 5; // protocol version
 						buffer[1] = 1; // general SOCKS server failure
-						DataWrite(tmp_sock,buffer,2,NULL);						
+						DataWrite(tmp_sock,buffer,2,ssl);						
 						return;
 					}
 
@@ -386,7 +611,7 @@ private:
 						debugmsg("-SYSTEM-","unsupported command");
 						buffer[0] = 5; // protocol version
 						buffer[1] = 1; // general SOCKS server failure
-						DataWrite(tmp_sock,buffer,2,NULL);						
+						DataWrite(tmp_sock,buffer,2,ssl);						
 						return;
 					}
 					if(buffer[2] == 0)
@@ -398,7 +623,7 @@ private:
 						debugmsg("-SYSTEM-","reserverd != 0");
 						buffer[0] = 5; // protocol version
 						buffer[1] = 1; // general SOCKS server failure
-						DataWrite(tmp_sock,buffer,2,NULL);						
+						DataWrite(tmp_sock,buffer,2,ssl);						
 						return;
 					}
 					if(buffer[3] == 1)
@@ -414,7 +639,7 @@ private:
 						debugmsg("-SYSTEM-","atype != 1");
 						buffer[0] = 5; // protocol version
 						buffer[1] = 8; // Address type not supported
-						DataWrite(tmp_sock,buffer,2,NULL);						
+						DataWrite(tmp_sock,buffer,2,ssl);						
 						return;
 					}
 					struct sockaddr_in listenadr;
@@ -471,7 +696,7 @@ private:
 								debugmsg("-SYSTEM-","illegal domain length");
 								buffer[0] = 5; // protocol version
 								buffer[1] = 1; // general SOCKS server failure
-								DataWrite(tmp_sock,buffer,2,NULL);	
+								DataWrite(tmp_sock,buffer,2,ssl);	
 								return;
 							}
 							memcpy(&myaddr.sin_port,buffer+buffer[4]+5,2);
@@ -488,7 +713,7 @@ private:
 							debugmsg("-SYSTEM-","error getting socket");
 							buffer[0] = 5; // protocol version
 							buffer[1] = 1; // general SOCKS server failure
-							DataWrite(tmp_sock,buffer,2,NULL);	
+							DataWrite(tmp_sock,buffer,2,ssl);	
 							return;
 						}
 						if (config.connect_ip != "")
@@ -500,7 +725,7 @@ private:
 								debugmsg("-SYSTEM-","connect ip - could not bind",errno);
 								buffer[0] = 5; // protocol version
 								buffer[1] = 1; // general SOCKS server failure
-								DataWrite(tmp_sock,buffer,2,NULL);	
+								DataWrite(tmp_sock,buffer,2,ssl);	
 								return;
 							}
 						}
@@ -510,7 +735,7 @@ private:
 							debugmsg("-SYSTEM-","allow list not empty - ip not allwoed",errno);
 							buffer[0] = 5; // protocol version
 							buffer[1] = 1; // general SOCKS server failure
-							DataWrite(tmp_sock,buffer,2,NULL);	
+							DataWrite(tmp_sock,buffer,2,ssl);	
 							return;
 						}
 
@@ -520,7 +745,7 @@ private:
 							debugmsg("-SYSTEM-","ip is in banned list",errno);
 							buffer[0] = 5; // protocol version
 							buffer[1] = 1; // general SOCKS server failure
-							DataWrite(tmp_sock,buffer,2,NULL);	
+							DataWrite(tmp_sock,buffer,2,ssl);	
 							return;
 						}
 						
@@ -534,7 +759,7 @@ private:
 								debugmsg("-SYSTEM-","connect error");
 								buffer[0] = 5; // protocol version
 								buffer[1] = 5; // general SOCKS server failure
-								DataWrite(tmp_sock,buffer,2,NULL);	
+								DataWrite(tmp_sock,buffer,2,ssl);	
 								return;
 							}
 						}
@@ -545,7 +770,7 @@ private:
 								debugmsg("-SYSTEM-","connect error");
 								buffer[0] = 5; // protocol version
 								buffer[1] = 5; // general SOCKS server failure
-								DataWrite(tmp_sock,buffer,2,NULL);	
+								DataWrite(tmp_sock,buffer,2,ssl);	
 								return;
 							}
 						}
@@ -559,7 +784,7 @@ private:
 							debugmsg("-SYSTEM-","error getting socket");
 							buffer[0] = 5; // protocol version
 							buffer[1] = 1; // general SOCKS server failure
-							DataWrite(tmp_sock,buffer,2,NULL);	
+							DataWrite(tmp_sock,buffer,2,ssl);	
 							return;
 						}
 						
@@ -570,7 +795,7 @@ private:
 							debugmsg("-SYSTEM-","connect ip - could not bind",errno);
 							buffer[0] = 5; // protocol version
 							buffer[1] = 1; // general SOCKS server failure
-							DataWrite(tmp_sock,buffer,2,NULL);	
+							DataWrite(tmp_sock,buffer,2,ssl);	
 							return;
 						}						
 						
@@ -586,7 +811,7 @@ private:
 						debugmsg("-SYSTEM-","connect error");
 						buffer[0] = 5; // protocol version
 						buffer[1] = 5; // general SOCKS server failure
-						DataWrite(tmp_sock,buffer,2,NULL);	
+						DataWrite(tmp_sock,buffer,2,ssl);	
 						return;
 					}
 					
@@ -628,22 +853,14 @@ private:
 						listenadr.sin_port = htons(config.listen_port); 
 						memcpy(buffer+8,&listenadr.sin_port,2);
 						memcpy(buffer+4,&listenadr.sin_addr,4);
-						if(!DataWrite(tmp_sock,buffer,10,NULL))
+						if(!DataWrite(tmp_sock,buffer,10,ssl))
 						{
 							debugmsg("-SYSTEM-","error writing to client");
 							return;
 						}
 					}
 					else if(method == "bind")
-					{
-						if(!GetSock(server_sock))
-						{
-							debugmsg("-SYSTEM-","error getting socket");
-							buffer[0] = 5; // protocol version
-							buffer[1] = 1; // general SOCKS server failure
-							DataWrite(tmp_sock,buffer,2,NULL);	
-							return;
-						}
+					{						
 
 						buffer[0] = 5; // protocol version
 						buffer[1] = 0; // succeeded
@@ -654,7 +871,7 @@ private:
 						memcpy(buffer+8,&listenadr.sin_port,2);
 						memcpy(buffer+4,&listenadr.sin_addr,4);
 						
-						if(!DataWrite(tmp_sock,buffer,10,NULL))
+						if(!DataWrite(tmp_sock,buffer,10,ssl))
 						{
 							debugmsg("-SYSTEM-","error writing to client");
 							return;
@@ -665,9 +882,11 @@ private:
 							debugmsg("-SYSTEM-","accept failed",errno);
 							buffer[0] = 5; // protocol version
 							buffer[1] = 1; // general SOCKS server failure
-							DataWrite(tmp_sock,buffer,2,NULL);	
+							DataWrite(tmp_sock,buffer,2,ssl);	
 							return;
 						}
+						cout << "bind_sock " << bind_sock << "\n";
+						cout << "server_sock " << server_sock << "\n";
 
 						debugmsg("-SYSTEM-","accept done",errno);
 						buffer[0] = 5; // protocol version
@@ -679,7 +898,7 @@ private:
 						memcpy(buffer+8,&listenadr.sin_port,2);
 						memcpy(buffer+4,&listenadr.sin_addr,4);
 						Close(bind_sock,"");
-						if(!DataWrite(tmp_sock,buffer,10,NULL))
+						if(!DataWrite(tmp_sock,buffer,10,ssl))
 						{
 							debugmsg("-SYSTEM-","error writing to client");
 							return;
@@ -729,7 +948,7 @@ private:
 								return;
 							}
 							
-							if(!DataWrite(tmp_sock,buffer,rc,NULL))
+							if(!DataWrite(tmp_sock,buffer,rc,ssl))
 							{					
 								return;
 							}
@@ -740,7 +959,7 @@ private:
 							memset(buffer,'\0',1);
 
 							int rc;
-							if(!DataRead(tmp_sock,buffer,rc,NULL,0,0))
+							if(!DataRead(tmp_sock,buffer,rc,ssl,0,0))
 							{					
 								return;
 							}
@@ -784,7 +1003,9 @@ void *makethread(void* pData)
 
 
 int main(int argc,char *argv[])
-{
+{	
+	SSL_load_error_strings();
+	SSL_library_init();
 	OpenSSL_add_all_digests();
 	pthread_attr_init(&threadattr);
 	pthread_attr_setdetachstate(&threadattr,PTHREAD_CREATE_DETACHED);
@@ -838,6 +1059,13 @@ int main(int argc,char *argv[])
 			return -1;
 		}
 	}
+	if(config.use_ssl)
+	{
+		if(!ssl_setup())
+		{
+			return -1;
+		}
+	}
 
 	if((listen_sock = socket(AF_INET, SOCK_STREAM, 0)) == -1)
 	{	
@@ -882,7 +1110,7 @@ int main(int argc,char *argv[])
 	struct sockaddr_in tmpaddr = GetIp("www.glftpd.com",21);
 	
 	char *cwd = getcwd(NULL, 4096);	
-	if (chroot(cwd))
+	if (chroot(cwd) && !config.no_chroot)
 	{
 		debugmsg("-SYSTEM-"," - WARNING: - Could not chroot");		
 	}	

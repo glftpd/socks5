@@ -54,7 +54,7 @@ week_limit=0;
 month_limit=0;
 
 [ Advanced ]
-oidentpath=; - if you want to use oidentd spoofing enter path to users .oidentd.conf file here
+oidentpath=/home/hawk/.oidentd.conf; - if you want to use oidentd spoofing enter path to users .oidentd.conf file including filename here
 oidentdelay=3; - delay in seconds before restoring old .oidentd.conf - 0 if you want it not restored
 buffersize=4096;
 pending=50;
