@@ -68,6 +68,7 @@ public:
 	{
 		tmp_sock = sock;
 		server_sock = -1;
+		bind_sock = -1;
 		cport = clport;
 		cip = clip;
 		
@@ -79,6 +80,7 @@ public:
 		debugmsg("CSockThread","destructor start");
 		Close(tmp_sock,"");
 		Close(server_sock,"");
+		Close(bind_sock,"");
 		delete [] buffer;
 		debugmsg("CSockThread","destructor End");		
 	}
@@ -92,6 +94,7 @@ private:
 	char *buffer;
 	int tmp_sock;
 	int server_sock;
+	int bind_sock;
 	int cport; // port from client - for ident request
 	string cip; // ip from client - for ident request
 
@@ -416,7 +419,7 @@ private:
 					int shouldquit = 0;
 					string clientip = "";
 					int clientport = 0;
-					int bind_sock = -1;
+					
 						
 					// modify oident.conf file to allow spoofing
 					if(config.oidentpath != "" && entry.oident == 1)
@@ -670,7 +673,7 @@ private:
 						listenadr.sin_port = htons(bindport); 
 						memcpy(buffer+8,&listenadr.sin_port,2);
 						memcpy(buffer+4,&listenadr.sin_addr,4);
-						
+						Close(bind_sock,"");
 						if(!DataWrite(tmp_sock,buffer,10,NULL))
 						{
 							debugmsg("-SYSTEM-","error writing to client");
