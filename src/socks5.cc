@@ -13,12 +13,56 @@ int use_blowconf = 1;
 string bk = "";
 string conffile;
 int listen_sock = -1;
-
+string old_oidentd; // save old oidentd.conf
 CUserList userlist;
+
+
+
+
+class CIdentThread
+{
+public:
+	pthread_t tid;
+	friend void *identthread(void *pData);
+	void thread(string oldoident)
+	{								
+		sleep(config.oidentdelay);
+		if(config.oidentdelay > 0)
+		{
+			debugmsg("-SYSTEM-","try to restore old .oident.conf");
+			ofstream oidentfile(config.oidentpath.c_str(),ios::out | ios::trunc);
+			if(oidentfile)
+			{
+				oidentfile << oldoident;
+				oidentfile.flush();
+				oidentfile.close();
+			}
+			else
+			{
+				debugmsg("-SYSTEM-","error restoring .oident.conf");
+			}
+		}
+				
+	}
+};
+
+void *identthread(void* pData)
+{
+	debugmsg("IDENTTHREAD","Starting ident thread");
+	CIdentThread* t = (CIdentThread*)pData;
+	t->thread(old_oidentd);
+	delete t;
+	debugmsg("IDENTTHREAD","Ending ident thread");
+	return NULL;
+}
 
 class CSockThread
 {
 public: 
+
+	void oident_thread(void *)
+	{
+	}
 
 	CSockThread(int sock,string clip,int clport)
 	{
@@ -373,6 +417,32 @@ private:
 					string clientip = "";
 					int clientport = 0;
 					int bind_sock = -1;
+						
+					// modify oident.conf file to allow spoofing
+					if(config.oidentpath != "" && entry.oident == 1)
+					{						
+						debugmsg("-SYSTEM-","trying to modify .oident.conf");
+						ofstream oidentfile(config.oidentpath.c_str(),ios::out | ios::trunc);
+						if(oidentfile)
+						{
+							oidentfile << "global {\n";
+							if(entry.oidentident == "")
+							{
+								oidentfile << "reply \"" + user_ident + "\"\n";
+							}
+							else
+							{
+								oidentfile << "reply \"" + entry.oidentident + "\"\n";
+							}
+							oidentfile << "}\n";
+							oidentfile.flush();
+							oidentfile.close();
+						}
+						else
+						{
+							debugmsg("-SYSTEM-","error modifying .oident.conf");
+						}
+					}
 
 					if(method == "connect")
 					{
@@ -445,6 +515,8 @@ private:
 							DataWrite(tmp_sock,buffer,2,NULL);	
 							return;
 						}
+						
+						
 						
 						int shouldquit = 0;						
 						if(entry.socksip == "")
@@ -604,6 +676,13 @@ private:
 							debugmsg("-SYSTEM-","error writing to client");
 							return;
 						}
+					}
+					
+					// restore old oidentd.conf
+					if(config.oidentpath != "" && entry.oident == 1)
+					{
+						CIdentThread *thread = new CIdentThread;
+						pthread_create(&thread->tid,NULL,identthread,thread);
 					}
 
 					while (1)
@@ -818,6 +897,20 @@ int main(int argc,char *argv[])
 	{		
 		pidfile << pid << "\n";
 		pidfile.close();
+	}
+	
+	if(config.oidentpath != "")
+	{
+		debugmsg("-SYSTEM-","trying to modify .oident.conf");
+		ifstream oidentfile(config.oidentpath.c_str(),ios::in);
+		if(oidentfile)
+		{
+			while(oidentfile.good())
+			{
+				old_oidentd += oidentfile.get();
+			}
+			oidentfile.close();
+		}
 	}
 
 	while(1)

@@ -1168,8 +1168,7 @@ struct sockaddr_in GetIp(string ip,int port)
 	
 		if((he = gethostbyname(ip.c_str())) == NULL)
 		{
-			debugmsg("-GETIP-","error resolving ip: " + ip);
-			//cout << "Error resolving ip\n";
+			debugmsg("-GETIP-","error resolving ip: " + ip);			
 			inet_aton("0.0.0.0", &addr.sin_addr); 
 		}
 		else
@@ -1179,6 +1178,13 @@ struct sockaddr_in GetIp(string ip,int port)
 			tmp = inet_ntoa(addr.sin_addr);
 			debugmsg("-GETIP-","resolved ip: " + tmp);
 		}
+	}
+	else
+	{
+		//debugmsg("-GETIP-","error resolving ip: " + ip + " using inet_addr - check your conf");
+		//addr.sin_addr.s_addr = inet_addr(ip.c_str());
+		//debugmsg("-GETIP-","error resolving ip: " + ip);
+		//inet_aton("0.0.0.0", &addr.sin_addr); 
 	}
 	addr.sin_port = htons(port);
 	memset(&(addr.sin_zero), '\0', 8);

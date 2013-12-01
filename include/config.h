@@ -53,7 +53,8 @@ class CConfig
 
 
 	// section [ADVANCED]
-	
+	string oidentpath;
+	int oidentdelay;
 	int buffersize;
 	int pending;	
 	int connect_timeout;

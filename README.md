@@ -43,6 +43,8 @@ SOCKSUSER1=;
 USERIP1=; - if specified user must have this ip(s) - can use ? and * but not - (ranges) - list of ips seperated with ,
 ALLOWEDIP1=; - if specified socks5 will only connect to this ips
 BANNEDIP1=; - if specified this target ips are not allowed
+OIDENT1=1; - 1 to enable oidentd feature - 0 to disable
+OIDENTIDENT1=; - use this ident with oidentd every time (else users ident is used)
 
 change options below only if you know what you're doing
 
@@ -52,6 +54,8 @@ week_limit=0;
 month_limit=0;
 
 [ Advanced ]
+oidentpath=; - if you want to use oidentd spoofing enter path to users .oidentd.conf file here
+oidentdelay=3; - delay in seconds before restoring old .oidentd.conf - 0 if you want it not restored
 buffersize=4096;
 pending=50;
 connect_timeout=7;

@@ -34,8 +34,8 @@
 
 using namespace std;
 
-#define version "Simple Socks5 v0.9.1 (c) _hawk_/PPX"
-#define builddate "02.01.2007"
+#define version "Simple Socks5 v0.9.2 (c) _hawk_/PPX"
+#define builddate "13.01.2007"
 
 #if defined(__GNUC__) && __GNUC__ < 3
 #define ios_base ios

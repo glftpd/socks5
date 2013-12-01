@@ -16,6 +16,8 @@ nr_users=1;
 USER1=hawk;
 PASS1=test;
 IDENT1=hawk;
+OIDENT1=1;
+OIDENTIDENT1=;
 SOCKSIP1=;
 SOCKSPORT1=;
 SOCKSPASS1=;
@@ -30,6 +32,8 @@ week_limit=0;
 month_limit=0;
 
 [ Advanced ]
+oidentpath=;
+oidentdelay=2;
 buffersize=4096;
 pending=50;
 connect_timeout=7;

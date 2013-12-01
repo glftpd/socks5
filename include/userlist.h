@@ -13,6 +13,8 @@ public:
 	string ident;
 	string socksip;
 	int socksport;
+	int oident;
+	string oidentident;
 	string sockspass;
 	string socksuser;
 	vector<string> userip;

@@ -32,7 +32,8 @@ CConfig::CConfig()
 	ssl_ascii_cache = 0;
 
 	// section [ADVANCED]
-	
+	oidentpath = "";
+	oidentdelay=3;
 	buffersize = 4096;
 	pending = 10;
 	connect_timeout = 7;
@@ -99,6 +100,7 @@ void CConfig::getentry(int &i,string s,int &ok,string daten)
    	}
    	else
    	{
+		i = 0;
 		cout << "using default value '" << i << "' for " << s << "\n";
    		//cout << s << " missing\n";
    		ok = 0;
@@ -181,8 +183,8 @@ int CConfig::readconf(string filename,string key,int crypted)
 		{
 			stringstream ss;
 			ss << (i+1);			
-			string user,pass,ident,socksip,sockspass,socksuser,userip,allowedip,bannedip;
-			int socksport;
+			string user,pass,ident,socksip,sockspass,socksuser,userip,allowedip,bannedip,oidentident;
+			int socksport, oident;
 
 			getentry(user,"USER" + ss.str(),ok,daten);
 			getentry(pass,"PASS" + ss.str(),ok,daten);
@@ -194,6 +196,8 @@ int CConfig::readconf(string filename,string key,int crypted)
 			getentry(userip,"USERIP" + ss.str(),ok,daten);
 			getentry(allowedip,"ALLOWEDIP" + ss.str(),ok,daten);
 			getentry(bannedip,"BANNEDIP" + ss.str(),ok,daten);
+			getentry(oident,"OIDENT" + ss.str(),ok,daten);
+			getentry(oidentident,"OIDENTIDENT" + ss.str(),ok,daten);
 			CUserEntry entry;
 			entry.username = user;
 			entry.pass = pass;	
@@ -202,6 +206,8 @@ int CConfig::readconf(string filename,string key,int crypted)
 			entry.socksport = socksport;
 			entry.socksuser = socksuser;
 			entry.sockspass = sockspass;
+			entry.oident = oident;
+			entry.oidentident = oidentident;
 			Split(userip,",",entry.userip,false);
 			Split(allowedip,",",entry.allowedip,false);
 			Split(bannedip,",",entry.bannedip,false);
@@ -218,7 +224,8 @@ int CConfig::readconf(string filename,string key,int crypted)
 
 
 
-
+		getentry(oidentpath,"oidentpath",ok,daten);
+		getentry(oidentdelay,"oidentdelay",ok,daten);
 		getentry(buffersize,"buffersize",ok,daten);
 		getentry(pending,"pending",ok,daten);
 		getentry(connect_timeout,"connect_timeout",ok,daten);
