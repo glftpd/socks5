@@ -16,7 +16,7 @@ int listen_sock = -1;
 string old_oidentd; // save old oidentd.conf
 CUserList userlist;
 
-
+pthread_attr_t threadattr;
 
 
 class CIdentThread
@@ -682,7 +682,7 @@ private:
 					if(config.oidentpath != "" && entry.oident == 1)
 					{
 						CIdentThread *thread = new CIdentThread;
-						pthread_create(&thread->tid,NULL,identthread,thread);
+						pthread_create(&thread->tid,&threadattr,identthread,thread);
 					}
 
 					while (1)
@@ -773,7 +773,7 @@ void *makethread(void* pData)
 	return NULL;
 }
 
-pthread_attr_t threadattr;
+
 
 int main(int argc,char *argv[])
 {
@@ -911,6 +911,11 @@ int main(int argc,char *argv[])
 			}
 			oidentfile.close();
 		}
+	}
+
+	if(setuid(config.uid) < 0)
+	{
+		debugmsg("-SYSTEM-"," - WARNING: - Could not set uid!");				
 	}
 
 	while(1)
