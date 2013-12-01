@@ -304,14 +304,17 @@ private:
 					DataWrite(tmp_sock,buffer,2,NULL);
 					return;
 				}
-				if(!userlist.CheckIdent(username,user_ident))
+				if(!config.no_ident_check)
 				{
-					debugmsg("-SYSTEM-","wrong ident");
-					debugmsg("-SYSTEM-","ident is: '" + user_ident + "'");
-					buffer[0] = 1; // protocol version
-					buffer[1] = 1; // failure
-					DataWrite(tmp_sock,buffer,2,NULL);
-					return;
+					if(!userlist.CheckIdent(username,user_ident))
+					{
+						debugmsg("-SYSTEM-","wrong ident");
+						debugmsg("-SYSTEM-","ident is: '" + user_ident + "'");
+						buffer[0] = 1; // protocol version
+						buffer[1] = 1; // failure
+						DataWrite(tmp_sock,buffer,2,NULL);
+						return;
+					}
 				}
 				//everything ok
 				buffer[0] = 1; // protocol version

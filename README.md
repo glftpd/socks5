@@ -1,4 +1,4 @@
-Simple Socks5 v0.9 (c) _hawk_/PPX
+Simple Socks5 v0.9.6 (c) _hawk_/PPX
 
 How to compile
 ----------------------
@@ -65,3 +65,5 @@ uid=1;
 pidfile=socks5.pid;
 retry_count=10;
 no_ident_check=0; - if enabled no ident request is made - dynamic ident with oidentd wont work
+
+-----------------------------------------------------------------------------------------------
