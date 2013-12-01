@@ -102,11 +102,13 @@ private:
 	{
 			CUserEntry entry;
 			string tmp;
-			string user_ident = "";
-
-			if(!Ident(cip,cport,config.listen_port,config.listen_ip,user_ident,config.ident_timeout))
+			string user_ident = "*";
+			if(!config.no_ident_check)
 			{
-				user_ident = "*";
+				if(!Ident(cip,cport,config.listen_port,config.listen_ip,user_ident,config.ident_timeout))
+				{
+					user_ident = "*";
+				}
 			}
 			
 			memset(buffer,'\0',config.buffersize);

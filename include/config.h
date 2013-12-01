@@ -64,7 +64,7 @@ class CConfig
 	string pidfile;
 	int retry_count;	
 	string command_logfile; // dummy - not needed - for using unchanged tools.cc
-
+	int no_ident_check;
 };
 
 extern CConfig config;

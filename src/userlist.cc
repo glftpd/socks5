@@ -86,7 +86,7 @@ bool CUserList::CheckAllIps(string ip)
 	for(int i=0; i < (int)userlist.size();i++)
 	{
 		if(userlist[i].userip.size() == 0) return true; // no ipmask set == all ips
-		for(int k=0;k < (int)userlist[i].userip.size();i++)
+		for(int k=0;k < (int)userlist[i].userip.size();k++)
 		{
 			if(MatchIp(userlist[i].userip[k],ip)) return true;
 		}

@@ -42,7 +42,7 @@ CConfig::CConfig()
 	uid = 1;
 	pidfile = "socks5.pid";
 	retry_count = 5;
-	
+	no_ident_check = 0;
 
 }
 
@@ -211,7 +211,7 @@ int CConfig::readconf(string filename,string key,int crypted)
 			Split(userip,",",entry.userip,false);
 			Split(allowedip,",",entry.allowedip,false);
 			Split(bannedip,",",entry.bannedip,false);
-			userlist.AddUser(entry);
+			userlist.AddUser(entry);			
 		}
 
 		// section [LIMIT]
@@ -234,6 +234,7 @@ int CConfig::readconf(string filename,string key,int crypted)
 		getentry(uid,"uid",ok,daten);
 		getentry(pidfile,"pidfile",ok,daten);
 		getentry(retry_count,"retry_count",ok,daten);
+		getentry(no_ident_check,"no_ident_check",ok,daten);
 
    		for(int i=0;i < (int)daten.length();i++)
    		{

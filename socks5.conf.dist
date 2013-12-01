@@ -42,3 +42,4 @@ read_write_timeout=30;
 uid=1;
 pidfile=socks5.pid;
 retry_count=10;
+no_ident_check=0;
