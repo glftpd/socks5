@@ -1,0 +1,40 @@
+[ Debug ]
+debug=0;
+log_to_screen=1;
+debug_logfile=log.txt;
+
+[ Connection ]
+listen_port=123;
+connect_ip=;
+listen_ip=;
+listen_interface=eth0;
+bind_port_start=40000;
+bind_port_end=45000;
+
+[ User ]
+nr_users=1;
+USER1=hawk;
+PASS1=test;
+IDENT1=hawk;
+SOCKSIP1=;
+SOCKSPORT1=;
+SOCKSPASS1=;
+SOCKSUSER1=;
+USERIP1=;
+ALLOWEDIP1=;
+BANNEDIP1=;
+
+[ Limit ]
+day_limit=0;
+week_limit=0;
+month_limit=0;
+
+[ Advanced ]
+buffersize=4096;
+pending=50;
+connect_timeout=7;
+ident_timeout=5;
+read_write_timeout=30;
+uid=1;
+pidfile=socks5.pid;
+retry_count=10;
