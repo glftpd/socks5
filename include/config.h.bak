@@ -62,7 +62,7 @@ class CConfig
 	int uid;	
 	string pidfile;
 	int retry_count;	
-	string command_logfile; // dummy - not needed - for using unchanged tools.cc
+	
 
 };
 

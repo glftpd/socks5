@@ -12,7 +12,7 @@ void CUserList::AddUser(CUserEntry entry)
 
 bool CUserList::IsInList(string name)
 {
-	for(unsigned int i=0; i < userlist.size();i++)
+	for(int i=0; i < (int)userlist.size();i++)
 	{
 		if(userlist[i].username == name)
 		{
@@ -24,7 +24,7 @@ bool CUserList::IsInList(string name)
 
 bool CUserList::CheckPass(string user, string pass, CUserEntry &entry)
 {		
-	for(unsigned int i=0; i < userlist.size();i++)
+	for(int i=0; i < (int)userlist.size();i++)
 	{
 		if(userlist[i].username == user)
 		{
@@ -40,7 +40,7 @@ bool CUserList::CheckPass(string user, string pass, CUserEntry &entry)
 
 bool CUserList::CheckIdent(string user, string ident)
 {
-	for(unsigned int i=0; i < userlist.size();i++)
+	for(int i=0; i < (int)userlist.size();i++)
 	{
 		if(userlist[i].username == user)
 		{			

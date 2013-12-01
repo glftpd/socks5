@@ -50,7 +50,32 @@ void debugmsg(string un,string s,int err)
 	}
 }
 
+void cmddebugmsg(string un,string s)
+{
+	if (config.debug && config.command_logfile != "")
+	{		
+		config_lock.Lock();
+		time_t rawtime;
+		struct tm * timeinfo;
 
+	  	time ( &rawtime );
+  		timeinfo = localtime ( &rawtime );
+		string t = asctime (timeinfo);
+		t = t.substr(0,t.length() - 1);
+		
+		ofstream dbg_logfile(config.command_logfile.c_str(),ios::out | ios::app);
+		if (dbg_logfile)
+		{
+			dbg_logfile << "[" << un << "," << t << "] " << s << endl ;
+			
+			dbg_logfile.flush();
+			dbg_logfile.close();
+		}		
+		
+		
+		config_lock.UnLock();
+	}
+}
 
 string ltrim( const string &str, const string &whitespace)
 {
@@ -152,7 +177,7 @@ int setblocking(int socket)
 void correctReply(string &in)
 {
 	string tmp;
-	for(unsigned int i=0;i<in.length();i++)
+	for(int i=0;i < (int)in.length();i++)
 	{
 		if(in[i] != '\n')
 		{
@@ -561,12 +586,12 @@ int Connect5(int &sock,string host,int port, string socksip, int socksport, stri
 					}
 					buffer[0] = 1;
 					buffer[1] = socksuser.length();
-					for(unsigned int i=0;i < socksuser.length();i++)
+					for(int i=0;i < (int)socksuser.length();i++)
 					{
 						buffer[i+2] = socksuser[i];
 					}
 					buffer[socksuser.length() + 2] = sockspass.length();
-					for(unsigned int i=0;i < sockspass.length();i++)
+					for(int i=0;i < (int)sockspass.length();i++)
 					{
 						buffer[i+3+socksuser.length()] = sockspass[i];
 					}
@@ -775,12 +800,12 @@ int Connect5(int &sock,string host,int port, string socksip, int socksport, stri
 			}
 			buffer[0] = 1;
 			buffer[1] = socksuser.length();
-			for(unsigned int i=0;i < socksuser.length();i++)
+			for(int i=0;i < (int)socksuser.length();i++)
 			{
 				buffer[i+2] = socksuser[i];
 			}
 			buffer[socksuser.length() + 2] = sockspass.length();
-			for(unsigned int i=0;i < sockspass.length();i++)
+			for(int i=0;i < (int)sockspass.length();i++)
 			{
 				buffer[i+3+socksuser.length()] = sockspass[i];
 			}
@@ -2064,7 +2089,7 @@ int decrypt(string key,unsigned char *datain,unsigned char *dataout,int s)
 	}
 
  	EVP_CIPHER_CTX_cleanup(&ctx);
- 	for (unsigned int i=0;i<key.length();i++) { key[i] = '0'; }
+ 	for (int i=0;i < (int)key.length();i++) { key[i] = '0'; }
         return 1;
 }
 
@@ -2086,7 +2111,7 @@ int encrypt(string key,unsigned char *datain,unsigned char *dataout,int s)
 	}
 
  	EVP_CIPHER_CTX_cleanup(&ctx);
- 	for (unsigned int i=0;i<key.length();i++) { key[i] = '0'; }
+ 	for (int i=0;i < (int)key.length();i++) { key[i] = '0'; }
         return 1;
 }
 

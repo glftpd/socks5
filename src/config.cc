@@ -228,7 +228,7 @@ int CConfig::readconf(string filename,string key,int crypted)
 		getentry(pidfile,"pidfile",ok,daten);
 		getentry(retry_count,"retry_count",ok,daten);
 
-   		for(unsigned int i=0;i < daten.length();i++)
+   		for(int i=0;i < (int)daten.length();i++)
    		{
    			daten[i] = '0';
    		}
