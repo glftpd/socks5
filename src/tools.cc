@@ -2082,20 +2082,19 @@ int decrypt(string key,unsigned char *datain,unsigned char *dataout,int s)
 	int ipos = 0;
 	int outlen = s;
 
-	EVP_CIPHER_CTX ctx;
-	EVP_CIPHER_CTX_init(&ctx);
-    EVP_CipherInit_ex(&ctx, EVP_bf_cfb(), NULL, NULL, NULL,ipos );
-    EVP_CIPHER_CTX_set_key_length(&ctx, key.length());
-    EVP_CipherInit_ex(&ctx, NULL, NULL,(unsigned char*)key.c_str(), ivec,ipos );
+	EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+	EVP_CipherInit_ex(ctx, EVP_bf_cfb(), NULL, NULL, NULL,ipos );
+	EVP_CIPHER_CTX_set_key_length(ctx, key.length());
+	EVP_CipherInit_ex(ctx, NULL, NULL,(unsigned char*)key.c_str(), ivec,ipos );
 
-	if(!EVP_CipherUpdate(&ctx, dataout, &outlen, datain, s))
+	if(!EVP_CipherUpdate(ctx, dataout, &outlen, datain, s))
 	{
 		return 0;
 	}
 
- 	EVP_CIPHER_CTX_cleanup(&ctx);
- 	for (int i=0;i < (int)key.length();i++) { key[i] = '0'; }
-        return 1;
+	EVP_CIPHER_CTX_free(ctx);
+	for (int i=0;i < (int)key.length();i++) { key[i] = '0'; }
+	return 1;
 }
 
 int encrypt(string key,unsigned char *datain,unsigned char *dataout,int s)
@@ -2104,20 +2103,19 @@ int encrypt(string key,unsigned char *datain,unsigned char *dataout,int s)
 	memset(ivec, 0,8);
 	int outlen = s;
 
-	EVP_CIPHER_CTX ctx;
-	EVP_CIPHER_CTX_init(&ctx);
-        EVP_EncryptInit_ex(&ctx, EVP_bf_cfb(), NULL, NULL, NULL );
-        EVP_CIPHER_CTX_set_key_length(&ctx, key.length());
-        EVP_EncryptInit_ex(&ctx, NULL, NULL, (unsigned char*)key.c_str(), ivec );
+	EVP_CIPHER_CTX* ctx = EVP_CIPHER_CTX_new();
+	EVP_EncryptInit_ex(ctx, EVP_bf_cfb(), NULL, NULL, NULL );
+	EVP_CIPHER_CTX_set_key_length(ctx, key.length());
+	EVP_EncryptInit_ex(ctx, NULL, NULL, (unsigned char*)key.c_str(), ivec );
 
-	if(!EVP_EncryptUpdate(&ctx, dataout, &outlen, datain, s))
+	if(!EVP_EncryptUpdate(ctx, dataout, &outlen, datain, s))
 	{
 		return 0;
 	}
 
- 	EVP_CIPHER_CTX_cleanup(&ctx);
- 	for (int i=0;i < (int)key.length();i++) { key[i] = '0'; }
-        return 1;
+	EVP_CIPHER_CTX_free(ctx);
+	for (int i=0;i < (int)key.length();i++) { key[i] = '0'; }
+	return 1;
 }
 
 int GetLine(int sock,SSL **ssl,string &reply)
@@ -2320,10 +2318,10 @@ int trafficcheck(void)
 string hash(string text,string algo)
 {
 	stringstream res;
-	EVP_MD_CTX mdctx;
-    const EVP_MD *md;    
-    unsigned char md_value[EVP_MAX_MD_SIZE];
-    unsigned int md_len, k;
+	EVP_MD_CTX* mdctx = EVP_MD_CTX_create();
+	const EVP_MD *md;
+	unsigned char md_value[EVP_MAX_MD_SIZE];
+	unsigned int md_len, k;
 	md = EVP_get_digestbyname(algo.c_str());
 	if(md == NULL)
 	{
@@ -2331,11 +2329,10 @@ string hash(string text,string algo)
 		debugmsg("-HASH-","Error getting hash algo");
 		return text;
 	}
-	EVP_MD_CTX_init(&mdctx);
-    EVP_DigestInit_ex(&mdctx, md, NULL);
-    EVP_DigestUpdate(&mdctx, text.c_str(), text.length());    
-    EVP_DigestFinal_ex(&mdctx, md_value, &md_len);
-    EVP_MD_CTX_cleanup(&mdctx);
+	EVP_DigestInit_ex(mdctx, md, NULL);
+	EVP_DigestUpdate(mdctx, text.c_str(), text.length());
+	EVP_DigestFinal_ex(mdctx, md_value, &md_len);
+	EVP_MD_CTX_destroy(mdctx);
 	for(k = 0; k < md_len; k++)
 	{
 		res << hex << (int)md_value[k];		
@@ -2350,21 +2347,20 @@ int filehash(string filename,string algo,string &result)
 	unsigned char *data;
 	readfile(filename,&data,size);
 	stringstream res;
-	EVP_MD_CTX mdctx;
-    const EVP_MD *md;    
-    unsigned char md_value[EVP_MAX_MD_SIZE];
-    unsigned int md_len, k;
+	EVP_MD_CTX* mdctx = EVP_MD_CTX_create();
+	const EVP_MD *md;
+	unsigned char md_value[EVP_MAX_MD_SIZE];
+	unsigned int md_len, k;
 	md = EVP_get_digestbyname(algo.c_str());
 	if(md == NULL)
 	{
 		delete [] data;		
 		return 0;
 	}
-	EVP_MD_CTX_init(&mdctx);
-    EVP_DigestInit_ex(&mdctx, md, NULL);
-    EVP_DigestUpdate(&mdctx, data, size);    
-    EVP_DigestFinal_ex(&mdctx, md_value, &md_len);
-    EVP_MD_CTX_cleanup(&mdctx);
+	EVP_DigestInit_ex(mdctx, md, NULL);
+	EVP_DigestUpdate(mdctx, data, size);
+	EVP_DigestFinal_ex(mdctx, md_value, &md_len);
+	EVP_MD_CTX_destroy(mdctx);
 	for(k = 0; k < md_len; k++)
 	{
 		res << hex << (int)md_value[k];		
