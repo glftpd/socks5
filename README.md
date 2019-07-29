@@ -2,7 +2,7 @@ Simple Socks5 v0.9.6 (c) _hawk_/PPX
 
 How to compile
 ----------------------
-Just type 'make clean linux'
+Just type `make clean linux`
 Needs g++ and openssl + header files
 
 How to setup
@@ -11,13 +11,13 @@ Copy socks5.conf.dist to bin/socks5.conf and edit
 
 How to start
 -----------------
-To start with uncrypted conf: ./socks5 -u socks5.conf
-To start with crypted conf: ./socks5 socks5.conf
-To encrypt the conf use the blowcrypt tool in bin
+To start with uncrypted conf: `./socks5 -u socks5.conf`
+
+To start with crypted conf: `./socks5 socks5.conf` (encrypt the conf using the blowcrypt tool in bin)
 
 Parameters in conf file
 --------------------------------
-
+```
 [ Debug ]
 debug=0; - turn debugging on/off
 log_to_screen=1; - print debug msgs to screen or to file
@@ -65,5 +65,5 @@ uid=1;
 pidfile=socks5.pid;
 retry_count=10;
 no_ident_check=0; - if enabled no ident request is made - dynamic ident with oidentd wont work
-
+```
 -----------------------------------------------------------------------------------------------
